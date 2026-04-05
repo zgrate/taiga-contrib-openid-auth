@@ -58,9 +58,10 @@ def openid_register(username:str, email:str, full_name:str, openid_id:int, token
             if PUBLIC_REGISTER_ENABLED:
                 # Create a new user
                 username_unique = slugify_uniquely(username, user_model, slugfield="username")
+                full_name_unique = full_name if full_name else slugify_uniquely(email, user_model, slugfield="full_name")
                 user = user_model.objects.create(email=email,
                                                 username=username_unique,
-                                                full_name=full_name)
+                                                full_name=full_name_unique)
                 auth_data_model.objects.create(user=user, key="openid", value=openid_id, extra={})
 
                 send_register_email(user)

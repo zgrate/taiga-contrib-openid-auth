@@ -9,7 +9,7 @@
     "defaultLanguage": "en",
     "themes": ["taiga"],
     "defaultTheme": "taiga",
-    "defaultLoginEnabled": true,
+    "defaultLoginEnabled": false,
     "publicRegisterEnabled": ${PUBLIC_REGISTER_ENABLED},
     "feedbackEnabled": true,
     "supportUrl": "https://resources.taiga.io",

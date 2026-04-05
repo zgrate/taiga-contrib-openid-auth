@@ -58,6 +58,13 @@ if [[ -z "${ENABLE_TRELLO_IMPORTER}" ]]; then
     export ENABLE_TRELLO_IMPORTER="false"
 fi
 
+if [ ${DEFAULT_LOGIN_DISABLED} == "true" ]; then
+    export DEFAULT_LOGIN_ENABLED="true"
+else
+    export DEFAULT_LOGIN_ENABLED="false"
+fi
+
+
 contribs=$( IFS=,; echo "[${contribs[*]}]" )
 
 export CONTRIB_PLUGINS=$contribs
