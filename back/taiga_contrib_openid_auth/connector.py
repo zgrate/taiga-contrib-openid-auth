@@ -16,7 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import requests
-import json
 
 from collections import namedtuple
 from urllib.parse import urljoin
@@ -26,8 +25,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from taiga.base.connectors.exceptions import ConnectorBaseException
 from taiga.base.exceptions import AuthenticationFailed
-
-import logging
 
 class OpenIDApiError(ConnectorBaseException):
     pass
@@ -55,6 +52,19 @@ HEADERS = {"Accept": "application/json", }
 AuthInfo = namedtuple("AuthInfo", ["access_token"])
 User = namedtuple("User", ["id", "username", "full_name", "email"])
 
+
+def _get_error_message(data: dict, default_message: str) -> str:
+    if not isinstance(data, dict):
+        return default_message
+
+    return (
+        data.get("error_description")
+        or data.get("detail")
+        or data.get("error_message")
+        or data.get("error")
+        or default_message
+    )
+
 ######################################################
 # utils
 ######################################################
@@ -81,8 +91,9 @@ def _get(url: str, headers: dict) -> dict:
     response = requests.get(url, headers=headers)
     data = response.json()
     if response.status_code != 200:
-        raise OpenIDApiError({"status_code": response.status_code,
-                              "error": data.get("error", "")})
+        raise OpenIDApiError(
+            _get_error_message(data, _("OpenID user info request failed."))
+        )
     return data
 
 
@@ -93,15 +104,13 @@ def _post(url: str, params: dict, headers: dict) -> dict:
     response = requests.post(url, data=params, headers=headers)
     try:
         data = response.json()
-    except:
-        raise OpenIDApiError({"status_code": response.status_code,
-                        "error": 'error from data not retrievable',
-                        "content": response.content})
+    except ValueError:
+        raise OpenIDApiError(_("OpenID token response could not be parsed."))
     else:
         if response.status_code != 200 or ("error" in data):
-            raise OpenIDApiError({"status_code": response.status_code,
-                            "error": data.get("error", ""),
-                            "content": response.content})
+            raise OpenIDApiError(
+                _get_error_message(data, _("OpenID token request failed."))
+            )
     return data
 
 
@@ -114,16 +123,17 @@ def login(access_code: str, token: str, redirect_uri: str, client_id: str = CLIE
     Get access_token fron an user authorized code, the client id and the client secret key.
     (See http://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint).
     """
-    if not CLIENT_ID or not CLIENT_SECRET:
-        raise OpenIDApiError({"error_message": _(
-            "The OpenID Connect plugin isn't properly configured. Please contact your sysadmin.")})
+    if not client_id or not client_secret or not TOKEN_URL:
+        raise OpenIDApiError(
+            _("The OpenID Connect plugin isn't properly configured. Please contact your sysadmin.")
+        )
 
     if token == "" or token == None:
         url = TOKEN_URL
         params = {"grant_type": "authorization_code",
                   "code": access_code,
-                  "client_id": CLIENT_ID,
-                  "client_secret": CLIENT_SECRET,
+                  "client_id": client_id,
+                  "client_secret": client_secret,
                   "redirect_uri": redirect_uri,
                   "scope": CLIENT_SCOPE
                   }
@@ -138,6 +148,11 @@ def get_user_profile(headers: dict = HEADERS):
     Get authenticated user info.
     (See openid.net/specs/openid-connect-core-1_0.html#UserInfo).
     """
+
+    if not USER_URL:
+        raise OpenIDApiError(
+            _("The OpenID user info URL is not configured. Please contact your sysadmin.")
+        )
 
     url = USER_URL
     data = _get(url, headers=headers)
@@ -166,13 +181,28 @@ def get_user_profile(headers: dict = HEADERS):
 
     elif data.get("email", None) != None :
         username = data.get("email", None)
+
+    openid_id = data.get(ID_FIELD, None)
+    email = data.get(EMAIL_FIELD, None)
+
+    if openid_id is None:
+        raise AuthenticationFailed(
+            _("OpenID provider did not return the configured user identifier claim.")
+        )
+
+    if not email:
+        raise AuthenticationFailed(
+            _("OpenID provider did not return an email address. Check the requested scopes or OPENID_EMAIL_FIELD.")
+        )
+
+    if username is None:
+        username = email
     
-    user =  User(id=data.get(ID_FIELD, None),
+    user =  User(id=openid_id,
                 username=username,
                 full_name=data.get(NAME_FIELD, None),
-                email=data.get(EMAIL_FIELD, None),
+                email=email,
                 )
-    # logging.warning([data.get(ID_FIELD, None), username, data.get(NAME_FIELD, None), data.get(EMAIL_FIELD, None)])
     return user
 
 ######################################################

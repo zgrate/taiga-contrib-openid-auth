@@ -11,3 +11,7 @@ if ENABLE_OPENID:
     OPENID_SCOPE = os.getenv('OPENID_SCOPE')
     OPENID_FILTER = os.getenv('OPENID_FILTER')
     OPENID_FILTER_FIELD = os.getenv('OPENID_FILTER_FIELD')
+    OPENID_ID_FIELD = os.getenv('OPENID_ID_FIELD', 'sub')
+    OPENID_USERNAME_FIELD = os.getenv('OPENID_USERNAME_FIELD', 'preferred_username')
+    OPENID_FULLNAME_FIELD = os.getenv('OPENID_FULLNAME_FIELD', 'name')
+    OPENID_EMAIL_FIELD = os.getenv('OPENID_EMAIL_FIELD', 'email')
