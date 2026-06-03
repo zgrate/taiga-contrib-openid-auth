@@ -17,6 +17,7 @@
 
 from django.db import transaction as tx
 from django.db import IntegrityError
+from django.utils.crypto import get_random_string
 from django.utils.translation import ugettext as _
 
 from django.apps import apps
@@ -59,9 +60,12 @@ def openid_register(username:str, email:str, full_name:str, openid_id:int, token
                 # Create a new user
                 username_unique = slugify_uniquely(username, user_model, slugfield="username")
                 full_name_unique = full_name if full_name else slugify_uniquely(email, user_model, slugfield="full_name")
-                user = user_model.objects.create(email=email,
-                                                username=username_unique,
-                                                full_name=full_name_unique)
+                random_password = get_random_string(128)
+                user = user_model(email=email,
+                                  username=username_unique,
+                                  full_name=full_name_unique)
+                user.set_password(random_password)
+                user.save()
                 auth_data_model.objects.create(user=user, key="openid", value=openid_id, extra={})
 
                 send_register_email(user)
